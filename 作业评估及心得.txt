@@ -1,0 +1,61 @@
+---------------任务分配--------------
+
+me：写了所有的代码~，（队友连边都描不会，我把子弹简单又描了下边）
+朱：对鱼和子弹进行描边，生成相关信息
+林：调整鱼的速度、碰撞概率、bezier控制点、获得金币，子弹的速度，碰撞概率、花费金币，对花费与收入的逻辑进行设定
+
+---------------作业重点笔记--------------
+1、在ccConfig.h文件中搜索CC_SPRITE_DEBUG_DRAW，将0改为1ccsprite的图片边框, 注意找了一个早上的bug，如果用9妹精灵，必须关闭这个debug，否者9妹精灵整个显示区域都会被画上白框，是每一个地方都画上白框，所以就显示全白了！
+2、type13的鱼的大小为450*320，但是从图片上看根本不是这个比例，进入plist发现是{389, 109}大小，4倍这样差不多，把resourcesize大小改了……测试发现精灵帧的getContentSize是根据plist里面sourceSize的值来决定的！,而 getTextureRect当前的帧在总精灵帧的位置 
+3、鱼是有方向的假如不是水平的话（用上贝塞尔），如果用Rect来检测碰撞会发现网没碰到的鱼也会被打中是因为rect的方向不是鱼的方向，因为鱼的方向已经转动了，而判断碰撞的矩形框没有转动，rect还是水平的方向，所以感觉这方法不好用！所以用了box2d
+4、在都改好body方向后发现碰撞还是超前，因为我改得都是节点的rotation，而不是精灵的rotation，而在world中用的却是sprite的rotation所以body一直都是0度！！！
+5、cocos2d : getActionByTag(tag = -859111423): Action not found，解决：查看CCControlButton的源码，找到函数CCControlButton::setHighlighted(bool enabled)，发现里面写着CCAction *action = getActionByTag(kZoomActionTag);CCControlButton在高亮的状态下会有一个scaleTo的动作，该动作有个tag是kZoomActionTag。CCControlButton每次的setHighlighted都执行getActionByTag(kZoomActionTag)，查看getActionByTag()的源码发现，只要内部有动作，且传进去的tag没有找到动作，就会cclog出上面的错误。所以是我对CCControlButton添加了抖动的动作，所以CCAction* CCActionManager::getActionByTag(unsigned int tag, CCObject *pTarget)函数里面的if语句是可以过的，因为内部有我设置的抖动的动作，但是想找scaleTo动作对应的tag肯定是找不到的，故有上面的错误,调试状态下发现按下去CCControlButton::setHighlighted(bool enabled)要true，一次错误，弹起来CCControlButton::setHighlighted(bool enabled)要false故没有错误，就cclog一次。好理解，但是在运行下（无断点），就是会出现两次，神奇的发现要set false竟然运行了两次！(因为要判断鼠标是不是在button内部弹起，调试的时候鼠标早不在内部了)所以上面的错误在set false时候也出现了一次终极解决办法是吧button放到node里面，node来执行抖动动画就好了~
+6、cocos2d: removeAction: Target not found错误说明：这是因为UI动画用的Action不是cocos2d自带的那些，当动画播放完成以后，会去调用cocos2d原本的stop，因为没有Action所以就这样了~ cocos2d: removeAction: Target not found在http://www.yiwuye.com/archives/cocostudio-ui-bug-rewrite.html  3.播放重构中有说明
+
+
+---------------作业展示--------------
+1、在菜单选择scene中背景使用液体效果，气泡粒子和鱼的游动是使用cocostudio中的UI编辑器来完成布局的，相当犀利的工具
+2、在菜单选择scene中在场景选择item下有一个彩蛋
+3、在场景选择scene中尝试使用CCControlButton + CCScale9Sprite来做button，来识别一些特定的鼠标操作，如鼠标在button内抬起，在button外抬起，动画该如何播放暂停继续的问题，menuitem暂没找到这样的方法
+4、在场景选择scene中的一些特特效与菜单scene类似，由于对网格动画了解不深调的不是很好
+5、在游戏scene中简单实现了截图功能，图片简单保存在当前目录（debugwin32），本来想设置../../Resource去的，怕debug目录换了就不行了。除暂停外其余图标不懂其作用故都当做暂停来使用
+6、在游戏scene中右下角的那些东西也不懂干什么用的，实现了回调，但放空处理。
+7、在游戏scene中大炮实现了放大缩小转换
+8、在游戏scene中实现了简单321倒计时，我就是让go的时候鱼出来不是bug！
+9、在游戏scene中正中间上方的倒计时实现10秒增加一定金币数量，并有相应的动画移动到金币箱（读取plish获取）
+10、在游戏scene中打中鱼会显示获得的金币数，并动画移动到金币箱，金币箱会跳动
+11、在游戏scene中左右下角的舵我一开始不懂是用来倒计时用的，好早就那么摆着，就没去修改。动画是使用cocostudio中的动画编辑器来，后来结合炮台面板使用UI编辑器也能完成，此处有cocos内部bug见笔记第6点
+12、在游戏scene中鱼的游动使用贝塞尔曲线，继承bezierBy，封装成两段的二次贝塞尔使之形成S型，每头鱼使用不同高度的控制点,越大的鱼控制点高度越低，越趋于直线游动，控制点高度(红色线条)见图所示
+13、在游戏scene中我采用box2d引擎的相关API来实现碰撞的检测，原因有两点见重点笔记第2、3点，随便学一下box2d
+14、在游戏scene中选择不同的游戏场景我只做了如下几个变动，a、背景layer图片，b、背景音乐，c、后两个场景打中鱼能获得双倍的钱
+15、在游戏scene中……想不起来了，想起来再写
+
+
+16、整体游戏部分场景切换随便加了一些效果，也就一行代码的事，网上有看到一个破碎的效果(玩游戏进入战斗经常见到)别人自己封装的效果灰常炫，学不来……
+17、我有看到在mac下有描图边界的工具，win下没有，自己用Qt写了一个，见附件vertex.rar，我看不下去了，就把子弹重新描了一下，队友描的的鱼我也是醉了，所以我跟老师说3人做还不如我一人做
+18、感谢的部分已经写在彩蛋里面了，这里不累赘
+
+
+最后一次补充：
+1、修正playBackgroundMusic要用true才能循环
+2、改“大于200分数夸张显示” 为 “大于300分数夸张显示”
+3、添加boxDebug的define，在fishLayer.cpp中
+4、修正倒计时时间到了goldBox没有设置动画，现在代码补上了
+5、修正点击大炮炮身子弹也打出，（强行设置y大于一定值才能打出）
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
